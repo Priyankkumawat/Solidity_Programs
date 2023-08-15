@@ -1,0 +1,104 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.5.0 <0.9.0;
+
+contract Auction{
+    address payable public auctionair;
+    uint public stBlock;
+    uint public etBlock;
+
+    enum Auc_State{Started,Running,Ended,Cancelled}
+    Auc_State public state;
+
+    constructor(){
+        auctionair=payable(msg.sender);
+        state=Auc_State.Started;
+        stBlock=block.number;
+        etBlock=stBlock + 240;
+    }
+
+    uint public higestPayableBid;
+    uint public bidInc;
+
+    address payable public highestBidder;
+
+    mapping(address=>uint) bids;
+
+    modifier notOwner(){
+        require(msg.sender != auctionair, "Auctionair cannot bid");
+        _;
+    } 
+
+    modifier Owner(){
+        require(msg.sender == auctionair, "Only Auctionair can cancelled bid");
+        _;
+    } 
+
+    modifier Started(){
+        require(block.number >= stBlock);
+        _;
+    }
+
+    modifier beforeEnded(){
+        require(block.number < etBlock);
+        _;
+    }
+
+    function min(uint a, uint b) pure private returns(uint){
+        if(a<b) return a;
+        return b;
+    }
+
+    function bid() payable public notOwner Started beforeEnded  {
+        require(state == Auc_State.Running);
+        require(msg.value > 1 ether);
+
+        uint currentBid = bids[msg.sender] + msg.value;
+
+        if(currentBid < bids[highestBidder]){
+            higestPayableBid = min(currentBid+bidInc , bids[highestBidder]);
+        }
+        else{
+            higestPayableBid = min(currentBid , bids[highestBidder] + bidInc);
+            highestBidder = payable(msg.sender);
+        }
+    }
+
+    function Cancelled() public Owner{
+        state=Auc_State.Cancelled;
+    }
+
+    function Ended() public Owner{
+        state=Auc_State.Ended;
+    }
+
+    function finaliseAuction() public {
+        require(state == Auc_State.Cancelled || state == Auc_State.Ended || block.number > etBlock);
+        require(auctionair == msg.sender || bids[msg.sender] > 0);
+        
+        address payable person;
+        uint value;
+
+        if(state == Auc_State.Cancelled){
+            person = payable(msg.sender);
+            value = bids[msg.sender];
+        }
+        else{
+            if(msg.sender == auctionair){
+                person = auctionair;
+                value=higestPayableBid;
+            }
+            else{
+                if(msg.sender == highestBidder){
+                    person = highestBidder;
+                    value = bids[highestBidder] - higestPayableBid;
+                }
+                else{
+                    person =payable (msg.sender);
+                    value = bids[msg.sender];
+                }
+            }
+        }
+        bids[msg.sender]=0;
+        person.transfer(value);
+    }
+}

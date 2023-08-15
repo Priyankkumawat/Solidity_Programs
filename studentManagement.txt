@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.5.0 <0.9.0;
+
+enum Class{A,B,C,D,E}
+
+struct Student{
+    string name;
+    uint regNo;
+    string dob;
+    Class class;
+}
+
+contract Management{
+    address public admin;
+    mapping(uint=>Student) studMap;
+
+    constructor(){
+        admin=msg.sender;
+    }
+
+    modifier Owner(){
+        require(msg.sender == admin,"You are not admin");
+        _;
+    }
+
+    function convert(string memory _class) private pure returns(Class a){
+        if(keccak256(abi.encodePacked(_class)) == keccak256(abi.encodePacked("A"))) return Class.A;
+        else if(keccak256(abi.encodePacked(_class)) == keccak256(abi.encodePacked("B"))) return Class.B; 
+        else if(keccak256(abi.encodePacked(_class)) == keccak256(abi.encodePacked("C"))) return Class.C; 
+        else if(keccak256(abi.encodePacked(_class)) == keccak256(abi.encodePacked("D"))) return Class.D; 
+        else return Class.E;
+    }
+
+    function addStud(string memory _name, uint _regNo, string memory _dob, string memory _class) public Owner(){
+        Student memory stud = Student(_name,_regNo,_dob,convert(_class));
+        studMap[_regNo]=stud;
+    }
+
+    function changeClass(uint _regNo,string memory _newclass) public Owner(){
+        Student memory newStud= Student(studMap[_regNo].name,
+                                studMap[_regNo].regNo,
+                                studMap[_regNo].dob,
+                                convert(_newclass));
+        studMap[_regNo]=newStud;
+    }
+
+    function changeDob(uint _regNo,string memory _dob) public Owner(){
+        Student memory newStud= Student(studMap[_regNo].name,
+                                studMap[_regNo].regNo,
+                                _dob,
+                                studMap[_regNo].class);
+        studMap[_regNo]=newStud;
+    }
+
+    function changeName(uint _regNo,string memory _name) public Owner(){
+        Student memory newStud= Student(_name,
+                                studMap[_regNo].regNo,
+                                studMap[_regNo].dob,
+                                studMap[_regNo].class);
+        studMap[_regNo]=newStud;
+    }
+
+    function deleteStudent(uint _regNo) public Owner{
+        delete studMap[_regNo];
+    }
+
+    function viewStudent(uint _regNo) public view returns (Student memory){
+        return studMap[_regNo];
+    } 
+}

@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ~0.8.0;
+
+contract lottery{
+    address payable public manager;
+    address payable[] public players;
+    address public winner;
+    uint public winnerAmout;
+
+    constructor(){
+        manager=payable(msg.sender);
+    }
+
+    function alreadyPay() view private returns(bool){
+        for(uint i=0; i< players.length;i++){
+            if(players[i] == msg.sender)
+            return true;
+        }
+        return false;
+    }
+
+    function enter() payable public {
+        require(msg.sender != manager, "Manager cannot enroll");
+        require(alreadyPay() == false, "Already entered");
+        require(msg.value >= 1 ether, "Ensufficient amout to enter");
+        players.push(payable(msg.sender));
+    }
+
+    function random() view private returns(uint){
+        return uint(sha256(abi.encodePacked(block.difficulty, block.number, players)));
+    }
+
+    function pickWinner() public {
+        require(msg.sender == manager, "Only manager can pick Winner");
+        uint index = random()%players.length;
+        address contractAddress = address(this);
+        winnerAmout=(8*contractAddress.balance)/10;
+        players[index].transfer((8*contractAddress.balance)/10);
+        manager.transfer((2*contractAddress.balance)/10);
+        winner = players[index];
+        players = new address payable[](0);
+    }
+
+    function getWinnerAmount() public view returns(uint){
+        return winnerAmout;
+    }
+
+    function getWinner() public view returns(address){
+        return winner;
+    }
+
+    function getTotalPlayers() public view returns (uint){
+        return players.length;
+    }
+}
